@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "962559500797",
+    "project_id": "nhom9-laptrinhdidong",
+    "storage_bucket": "nhom9-laptrinhdidong.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:962559500797:android:9f03c865a77b2923f1b994",
+        "android_client_info": {
+          "package_name": "com.example.nhom9_laptrinhdidong"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "962559500797-l5h5mnjbvhu985ra08jg1a1rpuk97r4k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFodEJNP8R0RXAeiFSgQVJqcssNjmOYRw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "962559500797-l5h5mnjbvhu985ra08jg1a1rpuk97r4k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "962559500797-ls25d3uj040nh0n5sdsi7kveuq1kstqg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.shopBanDongHo"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:962559500797:android:bfe22dde76a89ca8f1b994",
+        "android_client_info": {
+          "package_name": "com.example.shop_ban_dong_ho"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "962559500797-sk071gbn3bofrckr8mmrm2eu00imoag5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.shop_ban_dong_ho",
+            "certificate_hash": "960800c467774830c1e39a757cbd4bfe3eb4ba47"
+          }
+        },
+        {
+          "client_id": "962559500797-l5h5mnjbvhu985ra08jg1a1rpuk97r4k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFodEJNP8R0RXAeiFSgQVJqcssNjmOYRw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "962559500797-l5h5mnjbvhu985ra08jg1a1rpuk97r4k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "962559500797-ls25d3uj040nh0n5sdsi7kveuq1kstqg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.shopBanDongHo"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
