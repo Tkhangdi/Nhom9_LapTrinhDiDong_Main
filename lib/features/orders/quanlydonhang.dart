@@ -39,6 +39,32 @@ class _QuanLyDonHangScreenState extends State<QuanLyDonHangScreen>
 
   Future<void> huyDonHang(String orderId) async {
     try {
+      // Lấy đơn hàng để hoàn trả số lượng sản phẩm
+      final orderDoc = await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(currentUser)
+          .collection('user_orders')
+          .doc(orderId)
+          .get();
+      final orderData = orderDoc.data();
+      if (orderData != null && orderData['danhSachSanPham'] != null) {
+        for (var item in orderData['danhSachSanPham']) {
+          final maSp = item['id'];
+          final soLuong = item['soLuong'] ?? 0;
+          // Lấy sản phẩm hiện tại
+          final spSnapshot = await FirebaseFirestore.instance
+              .collection('SanPham')
+              .where('maSp', isEqualTo: maSp)
+              .limit(1)
+              .get();
+          if (spSnapshot.docs.isNotEmpty) {
+            final spDoc = spSnapshot.docs.first;
+            final currentTon = spDoc['soLuongTon'] ?? 0;
+            await spDoc.reference.update({'soLuongTon': currentTon + soLuong});
+          }
+        }
+      }
+      // Cập nhật trạng thái đơn hàng
       await FirebaseFirestore.instance
           .collection('orders')
           .doc(currentUser)

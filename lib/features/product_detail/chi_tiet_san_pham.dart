@@ -2,21 +2,85 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shop_ban_dong_ho/core/services/gio_hang_service.dart';
+import 'package:shop_ban_dong_ho/core/services/favorite_db.dart';
 import 'package:shop_ban_dong_ho/core/utils/app_colors.dart';
 import 'package:shop_ban_dong_ho/features/data/models/SanPham.dart';
+import 'package:shop_ban_dong_ho/features/data/models/FavoriteItem.dart';
 import 'package:shop_ban_dong_ho/features/orders/thanhtoan.dart';
 
-class ChiTietSanPham extends StatelessWidget {
+class ChiTietSanPham extends StatefulWidget {
   final SanPham sanPham;
-
   const ChiTietSanPham({super.key, required this.sanPham});
 
   @override
+  State<ChiTietSanPham> createState() => _ChiTietSanPhamState();
+}
+
+class _ChiTietSanPhamState extends State<ChiTietSanPham> {
+  bool isFavorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavorite();
+  }
+
+  Future<void> _checkFavorite() async {
+    final items = await FavoriteDB.getItems();
+    setState(() {
+      isFavorite = items.any((item) => item.name == widget.sanPham.tenSanPham);
+    });
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (isFavorite) {
+      // Xóa khỏi yêu thích
+      final items = await FavoriteDB.getItems();
+      FavoriteItem? item;
+      try {
+        item = items.firstWhere((item) => item.name == widget.sanPham.tenSanPham);
+      } catch (e) {
+        item = null;
+      }
+      if (item != null && item.id != null) {
+        await FavoriteDB.deleteItem(item.id!);
+      }
+      setState(() {
+        isFavorite = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xóa khỏi yêu thích!')));
+    } else {
+      await FavoriteDB.addSanPhamToFavorite(
+        name: widget.sanPham.tenSanPham,
+        imageUrl: widget.sanPham.hinhAnh.startsWith('http')
+            ? widget.sanPham.hinhAnh
+            : "https://res.cloudinary.com/dpckj5n6n/image/upload/${widget.sanPham.hinhAnh}.png",
+        price: (widget.sanPham.gia ?? 0).toDouble(),
+      );
+      setState(() {
+        isFavorite = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã thêm vào yêu thích!')));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final sanPham = widget.sanPham;
     return Scaffold(
       appBar: AppBar(
-        title: Text(sanPham.tenSanPham ?? 'Chi tiết sản phẩm'),
+        title: Text(sanPham.tenSanPham),
         backgroundColor: AppColors.primary,
+        actions: [
+          IconButton(
+            icon: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? Colors.red : Colors.white,
+            ),
+            tooltip: isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích',
+            onPressed: _toggleFavorite,
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
@@ -66,7 +130,9 @@ class ChiTietSanPham extends StatelessWidget {
           AspectRatio(
             aspectRatio: 1,
             child: Image.network(
-              "https://res.cloudinary.com/dpckj5n6n/image/upload/${sanPham.hinhAnh}.png",
+              sanPham.hinhAnh.startsWith('http')
+                  ? sanPham.hinhAnh
+                  : "https://res.cloudinary.com/dpckj5n6n/image/upload/${sanPham.hinhAnh}.png",
               fit: BoxFit.cover,
             ),
           ),
@@ -78,7 +144,7 @@ class ChiTietSanPham extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  sanPham.tenSanPham ?? '',
+                  sanPham.tenSanPham,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

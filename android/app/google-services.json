@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "962559500797-saauog5ehkkt07j0iucdf4131jpe4s8j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.nhom9_laptrinhdidong",
+            "certificate_hash": "8048ee00a93c4029d2c9e62d68589496f6dbcde9"
+          }
+        },
+        {
           "client_id": "962559500797-l5h5mnjbvhu985ra08jg1a1rpuk97r4k.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -49,6 +57,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "962559500797-o1ffioh3nnkujsi4ij3bn3ak1skv6ohb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.shop_ban_dong_ho",
+            "certificate_hash": "8048ee00a93c4029d2c9e62d68589496f6dbcde9"
+          }
+        },
         {
           "client_id": "962559500797-sk071gbn3bofrckr8mmrm2eu00imoag5.apps.googleusercontent.com",
           "client_type": 1,

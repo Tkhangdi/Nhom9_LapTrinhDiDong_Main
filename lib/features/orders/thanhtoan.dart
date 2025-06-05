@@ -7,7 +7,6 @@ import 'package:shop_ban_dong_ho/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -135,7 +134,7 @@ class _ThanhtoanState extends State<Thanhtoan> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        sp.tenSanPham ?? '',
+                        sp.tenSanPham,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 14),
@@ -270,6 +269,23 @@ class _ThanhtoanState extends State<Thanhtoan> {
             'trangThai': _ptThanhToan == 1 ? "pending" : "awaiting_payment",
             'ngayDat': Timestamp.now(),
           });
+
+      // Cập nhật số lượng tồn kho sản phẩm
+      for (var item in gioHangHienThi) {
+        final SanPham sp = item['sanPham'];
+        final int sl = item['soLuong'];
+        final newSoLuongTon = (sp.soLuongTon ?? 0) - sl;
+        await FirebaseFirestore.instance
+            .collection('SanPham')
+            .where('maSp', isEqualTo: sp.maSP)
+            .limit(1)
+            .get()
+            .then((snapshot) async {
+          if (snapshot.docs.isNotEmpty) {
+            await snapshot.docs.first.reference.update({'soLuongTon': newSoLuongTon});
+          }
+        });
+      }
 
       if (_ptThanhToan == 1) {
         Navigator.pushReplacement(

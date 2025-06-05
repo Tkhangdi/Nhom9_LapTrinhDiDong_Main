@@ -49,4 +49,13 @@ class FavoriteDB {
     final db = await database;
     await db.delete('favorites', where: 'id = ?', whereArgs: [id]);
   }
+
+  static Future<void> addSanPhamToFavorite({required String name, required String imageUrl, required double price}) async {
+    final db = await database;
+    await db.insert('favorites', {
+      'name': name,
+      'imageUrl': imageUrl,
+      'price': price,
+    });
+  }
 }

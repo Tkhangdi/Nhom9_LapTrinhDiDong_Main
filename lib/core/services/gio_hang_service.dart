@@ -27,4 +27,10 @@ class GioHangService {
   static Future<void> xoaSanPham(String maSp) async {
     await _db.collection('GioHang').doc(_uid).collection('sanPhams').doc(maSp).delete();
   }
+
+  /// Cập nhật số lượng tuyệt đối
+  static Future<void> capNhatSoLuong(String maSp, int soLuongMoi) async {
+    final ref = _db.collection('GioHang').doc(_uid).collection('sanPhams').doc(maSp);
+    await ref.update({'soLuong': soLuongMoi});
+  }
 }
