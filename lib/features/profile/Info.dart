@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shop_ban_dong_ho/features/auth/dangnhap.dart';
@@ -17,100 +18,123 @@ class Info extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            Center(
-              child: Column(
-                children: [
-                  Stack(
+      body: FutureBuilder<DocumentSnapshot>(
+        future: _getUserData(),
+        builder: (context, snapshot) {
+          // Hiển thị loading khi đang tải dữ liệu
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          // Xử lý lỗi
+          if (snapshot.hasError) {
+            return Center(child: Text('Lỗi: ${snapshot.error}'));
+          }
+          
+          // Lấy dữ liệu người dùng
+          String avatarUrl = 'assets/images/default.png';
+          String userName = 'Người dùng';
+          
+          if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
+            Map<String, dynamic> userData = snapshot.data!.data() as Map<String, dynamic>;
+            avatarUrl = userData['avatarUrl'] ?? 'assets/images/default.png';
+            userName = userData['hotenkh'] ?? 'Người dùng';
+          }
+          
+          return SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Center(
+                  child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.grey[300],
-                        // backgroundImage: AssetImage("assets/images/avatar.jpg"),
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.grey[300],
+                            backgroundImage: _getAvatarImage(avatarUrl),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: CircleAvatar(
+                              radius: 15,
+                              backgroundColor: Colors.white,
+                              child: Icon(Icons.camera_alt, color: Colors.grey),
+                            ),
+                          ),
+                        ],
                       ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: CircleAvatar(
-                          radius: 15,
-                          backgroundColor: Colors.white,
-                          child: Icon(Icons.camera_alt, color: Colors.grey),
-                        ),
+                      const SizedBox(height: 10),
+                      Text(
+                        userName,
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Profile",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView(
-                children: [
-                  buildMenuItem(
-                    context,
-                    icon: Icons.person_outline,
-                    text: "My Account",
-                    onTap: () {
-                      Navigator.push(
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      buildMenuItem(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => MyAccountScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  buildMenuItem(
-                    context,
-                    icon: Icons.person_outline,
-                    text: "Quản lý sản phẩm",
-                    onTap: () {
-                      Navigator.push(
+                        icon: Icons.person_outline,
+                        text: "My Account",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MyAccountScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      buildMenuItem(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => QuanLyDonHangScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  buildMenuItem(
-                    context,
-                    icon: Icons.notifications_outlined,
-                    text: "Notifications",
-                    onTap: () {
-                      Navigator.push(
+                        icon: Icons.person_outline,
+                        text: "Quản lý sản phẩm",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => QuanLyDonHangScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      buildMenuItem(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const NotificationScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  buildMenuItem(
-                    context,
-                    icon: Icons.settings,
-                    text: "Settings",
-                  ),
-                  buildMenuItem(
-                    context,
-                    icon: Icons.help_outline,
-                    text: "Help Center",
-                  ),
-                  buildMenuItem(
-                    context,
-                    icon: Icons.logout,
-                    text: "Log Out",
-                    color: Colors.red,
-                    onTap: ()async
-                    {
-                       await FirebaseAuth.instance.signOut();
+                        icon: Icons.notifications_outlined,
+                        text: "Notifications",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      buildMenuItem(
+                        context,
+                        icon: Icons.settings,
+                        text: "Settings",
+                      ),
+                      buildMenuItem(
+                        context,
+                        icon: Icons.help_outline,
+                        text: "Help Center",
+                      ),
+                      buildMenuItem(
+                        context,
+                        icon: Icons.logout,
+                        text: "Log Out",
+                        color: Colors.red,
+                        onTap: ()async
+                        {
+                           await FirebaseAuth.instance.signOut();
   final GoogleSignIn googleSignIn = GoogleSignIn();
   await googleSignIn.signOut();
     Navigator.pushReplacement(
@@ -118,15 +142,44 @@ class Info extends StatelessWidget {
     MaterialPageRoute(builder: (_) => const DangNhap()),
   );
 
-                    }
+                        }
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        }
       ),
     );
+  }
+
+  // Hàm lấy dữ liệu người dùng từ Firestore
+  Future<DocumentSnapshot> _getUserData() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    
+    if (currentUser != null) {
+      return await FirebaseFirestore.instance
+          .collection('khachhang')
+          .doc(currentUser.uid)
+          .get();
+    }
+    
+    // Trả về document rỗng nếu không có user
+    return await FirebaseFirestore.instance
+        .collection('khachhang')
+        .doc('non_existent_doc')
+        .get();
+  }
+  
+  // Hàm tạo ImageProvider dựa trên url
+  ImageProvider _getAvatarImage(String url) {
+    if (url.startsWith('http') || url.startsWith('https')) {
+      return NetworkImage(url);
+    } else {
+      return AssetImage(url);
+    }
   }
 
   Widget buildMenuItem(

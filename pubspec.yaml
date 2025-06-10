@@ -42,13 +42,13 @@ dependencies:
   firebase_auth: ^4.20.0
   cloud_firestore: ^4.15.0
   firebase_messaging: ^14.7.20 # Thêm để nhận thông báo đẩy
-
   image_picker: ^1.0.7 # Thêm để hỗ trợ chọn ảnh từ thư viện
   intl: ^0.18.0
   js: ^0.7.2  
   
   firebase_auth_web: ^5.8.12
   google_sign_in: ^6.3.0
+  firebase_storage: ^11.6.0 # Thêm để lưu trữ hình ảnh
   flutter_local_notifications: ^19.2.1
 dev_dependencies:
   flutter_test:
@@ -71,11 +71,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

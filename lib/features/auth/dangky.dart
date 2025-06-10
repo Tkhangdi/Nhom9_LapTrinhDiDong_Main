@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shop_ban_dong_ho/core/utils/app_colors.dart';
 import 'package:shop_ban_dong_ho/features/auth/dangnhap.dart';
 
@@ -43,11 +44,13 @@ class _DangKyState extends State<DangKy> {
     final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     return regex.hasMatch(value);
   }
-
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
       String userId =
           'KH${DateTime.now().day.toString().padLeft(2, '0')}${DateTime.now().month.toString().padLeft(2, '0')}${DateTime.now().year.toString().substring(2)}01';
+      
+      final email = emailController.text.trim();
+      final password = passwordController.text.trim();
 
       try {
         // Kiểm tra xem tài khoản đã tồn tại chưa
@@ -69,7 +72,7 @@ class _DangKyState extends State<DangKy> {
         QuerySnapshot emailSnapshot =
             await FirebaseFirestore.instance
                 .collection('khachhang')
-                .where('email', isEqualTo: emailController.text)
+                .where('email', isEqualTo: email)
                 .get();
 
         if (emailSnapshot.docs.isNotEmpty) {
@@ -80,39 +83,71 @@ class _DangKyState extends State<DangKy> {
           return; // Dừng quá trình đăng ký
         }
 
-        // Nếu tài khoản và email chưa tồn tại, tiếp tục đăng ký
-        await FirebaseFirestore.instance.collection('khachhang').doc().set({
+        // 1. Tạo tài khoản xác thực Firebase Auth
+        final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        
+        final firebaseUser = userCredential.user;
+        if (firebaseUser == null) {
+          throw Exception('Không thể tạo tài khoản Firebase Auth');
+        }
+
+        // 2. Lưu thông tin chi tiết vào Firestore
+        await FirebaseFirestore.instance.collection('khachhang').doc(firebaseUser.uid).set({
           'id': userId,
           'hotenkh': hotenkhController.text,
           'TaiKhoan': TaiKhoanController.text,
-          'matkhau': passwordController.text,
+          'matkhau': passwordController.text, // Lưu ý: Không cần lưu mật khẩu vì đã có trong Auth
           'gioitinh': _selectedgioitinh,
           'ngaysinh': ngaysinhController.text,
           'sdt': sdtController.text,
           'diachi': diachiController.text,
-          'email': emailController.text, // Lưu email vào Firestore
+          'email': email,
+          'avatarUrl': 'assets/images/default.png', // Avatar mặc định
         });
 
         // Hiển thị thông báo thành công
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Đăng ký thành công!')));
-      } catch (e) {
+        
+        // Chuyển đến màn hình đăng nhập
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (context) => DangNhap())
+        );      } catch (e) {
         print("Error during sign-up: $e");
         print("Error type: ${e.runtimeType}");
 
-        // Kiểm tra lỗi nếu có lỗi liên quan đến Firestore
-        if (e is FirebaseException) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi Firestore: ${e.message}')),
-          );
-        } else {
-          // Xử lý các lỗi không xác định
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Lỗi không xác định: $e')));
-          print("Detailed error: ${e.toString()}");
-        }
+        String errorMessage = 'Lỗi không xác định trong quá trình đăng ký';
+        
+        // Kiểm tra lỗi Firebase Auth
+        if (e is FirebaseAuthException) {
+          switch (e.code) {
+            case 'email-already-in-use':
+              errorMessage = 'Email này đã được sử dụng bởi tài khoản khác';
+              break;
+            case 'weak-password':
+              errorMessage = 'Mật khẩu quá yếu, vui lòng chọn mật khẩu mạnh hơn';
+              break;
+            case 'invalid-email':
+              errorMessage = 'Email không hợp lệ';
+              break;
+            default:
+              errorMessage = 'Lỗi xác thực: ${e.message}';
+          }
+        } 
+        // Kiểm tra lỗi Firestore
+        else if (e is FirebaseException) {
+          errorMessage = 'Lỗi Firestore: ${e.message}';
+        } 
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+        print("Detailed error: ${e.toString()}");
       }
     }
   }

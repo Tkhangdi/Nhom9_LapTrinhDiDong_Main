@@ -7,6 +7,7 @@ class KhachHang {
   String ngaysinh;
   String sdt;
   String diachi;
+  String avatarUrl;
 
   KhachHang({
     required this.id,
@@ -17,6 +18,7 @@ class KhachHang {
     required this.ngaysinh,
     required this.sdt,
     required this.diachi,
+    required this.avatarUrl,
   });
 
   // Convert KhachHang object to a Map (for storing in a database)
@@ -30,6 +32,7 @@ class KhachHang {
       'ngaysinh': ngaysinh,
       'sdt': sdt,
       'diachi': diachi,
+      'avatarUrl': avatarUrl,
     };
   }
 
@@ -44,6 +47,7 @@ class KhachHang {
       ngaysinh: map['ngaysinh'],
       sdt: map['sdt'],
       diachi: map['diachi'],
+      avatarUrl: map['avatarUrl'] ?? '',
     );
   }
 }

@@ -28,17 +28,35 @@ class _DangNhapState extends State<DangNhap> {
     passwordController.dispose();
     super.dispose();
   }
-
   Future<void> _logIn() async {
     if (_formKey.currentState!.validate()) {
       final email = taiKhoanController.text.trim();
       final password = passwordController.text.trim();
 
       try {
+        // Hiển thị dialog loading
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return const Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          },
+        );
+        
+        // Thực hiện đăng nhập
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
           password: password,
         );
+        
+        // Đóng dialog loading
+        Navigator.pop(context);
 
         // Đăng nhập thành công
         Navigator.pushReplacement(
@@ -46,11 +64,20 @@ class _DangNhapState extends State<DangNhap> {
           MaterialPageRoute(builder: (_) => MyButtonNavigationBar()),
         );
       } on FirebaseAuthException catch (e) {
+        // Đóng dialog loading nếu đang hiển thị
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+        
         String message = 'Lỗi đăng nhập';
         if (e.code == 'user-not-found') {
-          message = 'Tài khoản không tồn tại';
+          message = 'Tài khoản không tồn tại, vui lòng kiểm tra lại email';
         } else if (e.code == 'wrong-password') {
-          message = 'Mật khẩu không đúng';
+          message = 'Mật khẩu không đúng, vui lòng thử lại';
+        } else if (e.code == 'invalid-email') {
+          message = 'Email không đúng định dạng';
+        } else if (e.code == 'invalid-credential') {
+          message = 'Thông tin đăng nhập không hợp lệ';
         } else {
           message = e.message ?? 'Lỗi không xác định';
         }
@@ -58,6 +85,17 @@ class _DangNhapState extends State<DangNhap> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(message)));
+      } catch (e) {
+        // Đóng dialog loading nếu đang hiển thị
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+        
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(content: Text('Đã xảy ra lỗi: ${e.toString()}')),
+        );
       }
     }
   }

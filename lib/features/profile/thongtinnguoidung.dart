@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:shop_ban_dong_ho/core/utils/app_colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class MyAccountScreen extends StatefulWidget {
   const MyAccountScreen({super.key});
@@ -12,13 +15,17 @@ class MyAccountScreen extends StatefulWidget {
 }
 
 class _MyAccountScreenState extends State<MyAccountScreen> {
-  // Giả lập thông tin người dùng
-  String userName = "Nguyễn Văn A";
-  String userEmail = "nguyenvana@example.com";
-  String userPhone = "0123 456 789";
-  String userAddress = "123 Đường ABC, Quận 1, TP.HCM";
+  // Thông tin người dùng
+  String userName = "";
+  String userEmail = "";
+  String userPhone = "";
+  String userAddress = "";
   String userGender = "Nam";
-  String userPassword = "MatKhau123";
+  String userPassword = "";
+  String userId = "";
+  String avatarUrl = "assets/images/default.png"; // Đường dẫn avatar mặc định
+  bool isLoading = true;
+  
   File? _profileImage;
   bool isPasswordHidden = true;
   final ImagePicker _picker = ImagePicker();
@@ -36,10 +43,56 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: userName);
-    _phoneController = TextEditingController(text: userPhone);
-    _addressController = TextEditingController(text: userAddress);
-    _emailController = TextEditingController(text: userEmail);
+    _nameController = TextEditingController();
+    _phoneController = TextEditingController();
+    _addressController = TextEditingController();
+    _emailController = TextEditingController();
+    
+    // Load thông tin người dùng từ Firebase
+    _loadUserData();
+  }
+  
+  // Phương thức lấy thông tin người dùng từ Firebase
+  Future<void> _loadUserData() async {
+    try {
+      // Lấy người dùng hiện tại từ Firebase Auth
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (currentUser != null) {
+        // Truy vấn thông tin chi tiết từ Firestore bằng UID của người dùng hiện tại
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('khachhang')
+            .doc(currentUser.uid)
+            .get();
+            
+        if (userDoc.exists) {
+          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+            setState(() {
+            userName = userData['hotenkh'] ?? "";
+            userEmail = userData['email'] ?? "";
+            userPhone = userData['sdt'] ?? "";
+            userAddress = userData['diachi'] ?? "";
+            userGender = userData['gioitinh'] ?? "Nam";
+            userPassword = userData['matkhau'] ?? "";
+            userId = userData['id'] ?? "";
+            avatarUrl = userData['avatarUrl'] ?? "assets/images/default.png";
+            
+            // Cập nhật controllers
+            _nameController.text = userName;
+            _phoneController.text = userPhone;
+            _addressController.text = userAddress;
+            _emailController.text = userEmail;
+            
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Lỗi khi tải thông tin người dùng: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override
@@ -50,7 +103,6 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     _emailController.dispose();
     super.dispose();
   }
-
   Future<void> _getImage() async {
     showModalBottomSheet(
       context: context,
@@ -71,6 +123,8 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                     setState(() {
                       _profileImage = File(image.path);
                     });
+                    // Upload ảnh lên Firebase Storage và cập nhật avatarUrl
+                    await _uploadImageToFirebase(File(image.path));
                   }
                 },
               ),
@@ -84,6 +138,8 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                     setState(() {
                       _profileImage = File(image.path);
                     });
+                    // Upload ảnh lên Firebase Storage và cập nhật avatarUrl
+                    await _uploadImageToFirebase(File(image.path));
                   }
                 },
               ),
@@ -93,9 +149,93 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       },
     );
   }
+  
+  // Phương thức upload ảnh lên Firebase Storage
+  Future<void> _uploadImageToFirebase(File imageFile) async {
+    try {
+      // Hiển thị loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        },
+      );
+      
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (currentUser != null) {
+        // Tạo reference đến Firebase Storage
+        final storageRef = FirebaseStorage.instance.ref();
+        
+        // Tạo tên file duy nhất cho avatar
+        String fileName = 'avatars/${currentUser.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        
+        // Upload file lên Firebase Storage
+        final uploadTask = await storageRef.child(fileName).putFile(
+          imageFile,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        
+        // Lấy URL download của file
+        final downloadUrl = await uploadTask.ref.getDownloadURL();
+        
+        // Cập nhật URL avatar vào Firestore
+        await FirebaseFirestore.instance
+            .collection('khachhang')
+            .doc(currentUser.uid)
+            .update({
+              'avatarUrl': downloadUrl,
+            });
+            
+        // Cập nhật state
+        setState(() {
+          avatarUrl = downloadUrl;
+        });
+        
+        // Đóng dialog loading
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        
+        // Hiển thị thông báo thành công
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cập nhật ảnh đại diện thành công')),
+        );
+      }
+    } catch (e) {
+      // Đóng dialog loading nếu có lỗi
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      print('Lỗi khi upload ảnh: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi cập nhật ảnh đại diện: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text("Hồ Sơ Cá Nhân"),
+          backgroundColor: AppColors.primary,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     return Scaffold(
       backgroundColor: Colors.grey[100],
       extendBodyBehindAppBar: true,
@@ -172,14 +312,41 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                                   offset: const Offset(0, 2),
                                 ),
                               ],
-                            ),
-                            child: ClipOval(
+                            ),                            child: ClipOval(
                               child: _profileImage != null
                                   ? Image.file(_profileImage!, fit: BoxFit.cover)
-                                  : Image.asset(
-                                      "assets/images/avatar.jpg",
-                                      fit: BoxFit.cover,
-                                    ),
+                                  : (avatarUrl.startsWith('http') || avatarUrl.startsWith('https')
+                                      ? Image.network(
+                                          avatarUrl,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder: (context, child, loadingProgress) {
+                                            if (loadingProgress == null) return child;
+                                            return Center(
+                                              child: CircularProgressIndicator(
+                                                value: loadingProgress.expectedTotalBytes != null
+                                                    ? loadingProgress.cumulativeBytesLoaded / 
+                                                      (loadingProgress.expectedTotalBytes ?? 1)
+                                                    : null,
+                                              ),
+                                            );
+                                          },
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Image.asset(
+                                              "assets/images/default.png",
+                                              fit: BoxFit.cover,
+                                            );
+                                          },
+                                        )
+                                      : Image.asset(
+                                          avatarUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Image.asset(
+                                              "assets/images/default.png",
+                                              fit: BoxFit.cover,
+                                            );
+                                          },
+                                        )),
                             ),
                           ),
                           Positioned(
@@ -628,7 +795,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
             "Đăng xuất",
             _buildActionField(
               "Đăng xuất khỏi tài khoản",
-              () {
+              () async {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
@@ -640,9 +807,14 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                         child: const Text("Hủy"),
                       ),
                       ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.of(context).pop();
                           // Xử lý đăng xuất
+                          await FirebaseAuth.instance.signOut();
+                          
+                          // Quay về màn hình đăng nhập
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                          
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Đăng xuất thành công')),
                           );
@@ -968,7 +1140,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, setDialogState) {
             return AlertDialog(
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1032,7 +1204,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                             size: 20,
                           ),
                           onPressed: () {
-                            setState(() {
+                            setDialogState(() {
                               _currentPasswordVisible = !_currentPasswordVisible;
                             });
                           },
@@ -1079,7 +1251,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                             size: 20,
                           ),
                           onPressed: () {
-                            setState(() {
+                            setDialogState(() {
                               _newPasswordVisible = !_newPasswordVisible;
                             });
                           },
@@ -1126,7 +1298,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                             size: 20,
                           ),
                           onPressed: () {
-                            setState(() {
+                            setDialogState(() {
                               _confirmPasswordVisible = !_confirmPasswordVisible;
                             });
                           },
@@ -1141,18 +1313,8 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           // Kiểm tra thông tin mật khẩu và xử lý đổi mật khẩu
-                          if (currentPasswordController.text != userPassword) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Mật khẩu hiện tại không đúng!'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                            return;
-                          }
-                          
                           if (newPasswordController.text.isEmpty || 
                               newPasswordController.text.length < 6) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -1174,18 +1336,78 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                             return;
                           }
                           
-                          setState(() {
-                            userPassword = newPasswordController.text;
-                          });
-                          
-                          Navigator.pop(context);
-                          
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Đổi mật khẩu thành công!'),
-                              behavior: SnackBarBehavior.floating,
+                          // Hiển thị loading
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => const Dialog(
+                              backgroundColor: Colors.transparent,
+                              elevation: 0,
+                              child: Center(child: CircularProgressIndicator()),
                             ),
                           );
+                          
+                          try {
+                            // Lấy người dùng hiện tại
+                            User? currentUser = FirebaseAuth.instance.currentUser;
+                            
+                            if (currentUser != null) {
+                              // Xác thực lại người dùng với mật khẩu hiện tại
+                              AuthCredential credential = EmailAuthProvider.credential(
+                                email: userEmail, 
+                                password: currentPasswordController.text
+                              );
+                              
+                              // Xác thực lại người dùng trước khi đổi mật khẩu
+                              await currentUser.reauthenticateWithCredential(credential);
+                              
+                              // Cập nhật mật khẩu trong Firebase Authentication
+                              await currentUser.updatePassword(newPasswordController.text);
+                              
+                              // Cập nhật mật khẩu trong Firestore
+                              await FirebaseFirestore.instance
+                                  .collection('khachhang')
+                                  .doc(currentUser.uid)
+                                  .update({'matkhau': newPasswordController.text});
+                              
+                              // Cập nhật state
+                              setState(() {
+                                userPassword = newPasswordController.text;
+                              });
+                              
+                              // Đóng dialog loading
+                              Navigator.pop(context);
+                              
+                              // Đóng dialog đổi mật khẩu
+                              Navigator.pop(context);
+                              
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Đổi mật khẩu thành công!'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            // Đóng dialog loading
+                            Navigator.pop(context);
+                            
+                            String errorMessage = 'Đã xảy ra lỗi khi đổi mật khẩu';
+                            if (e is FirebaseAuthException) {
+                              if (e.code == 'wrong-password') {
+                                errorMessage = 'Mật khẩu hiện tại không đúng!';
+                              } else {
+                                errorMessage = 'Lỗi: ${e.message}';
+                              }
+                            }
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(errorMessage),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
@@ -1215,7 +1437,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     );
   }
 
-  void _saveUserInfo() {
+  Future<void> _saveUserInfo() async {
     // Hiển thị loading indicator
     showDialog(
       context: context,
@@ -1231,82 +1453,118 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       },
     );
     
-    // Giả lập quá trình lưu
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.of(context).pop(); // Đóng dialog loading
+    try {
+      // Lấy người dùng hiện tại từ Firebase Auth
+      User? currentUser = FirebaseAuth.instance.currentUser;
       
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Colors.green,
-                      size: 40,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Cập nhật thành công",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Thông tin cá nhân của bạn đã được cập nhật",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text(
-                        "Đồng ý",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+      if (currentUser != null) {
+        // Cập nhật thông tin người dùng trong Firestore
+        await FirebaseFirestore.instance
+            .collection('khachhang')
+            .doc(currentUser.uid)
+            .update({
+              'hotenkh': _nameController.text,
+              'sdt': _phoneController.text,
+              'diachi': _addressController.text,
+              'gioitinh': userGender,
+            });
+            
+        // Cập nhật trạng thái nội bộ
+        setState(() {
+          userName = _nameController.text;
+          userPhone = _phoneController.text;
+          userAddress = _addressController.text;
+        });
+        
+        // Đóng dialog loading
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        
+        // Hiển thị thông báo thành công
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-            ),
-          );
-        },
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        color: Colors.green,
+                        size: 40,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Cập nhật thành công",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Thông tin cá nhân của bạn đã được cập nhật",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text(
+                          "Đồng ý",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      }
+    } catch (e) {
+      // Đóng dialog loading
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      // Hiển thị thông báo lỗi
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi cập nhật thông tin: $e')),
       );
-    });
+    }
   }
 }
