@@ -7,9 +7,12 @@ import 'package:shop_ban_dong_ho/features/data/models/Cart.dart';
 import 'package:shop_ban_dong_ho/features/data/models/CartItem.dart';
 import 'package:shop_ban_dong_ho/features/favorites/page/Favorite.dart';
 import 'package:shop_ban_dong_ho/features/home/trangchu.dart';
+import 'package:shop_ban_dong_ho/features/orders/quanlydonhang.dart';
 import 'package:shop_ban_dong_ho/features/profile/Info.dart';
+import 'package:shop_ban_dong_ho/features/statistics/ThongKeChiTieuScreen.dart';
 import 'package:shop_ban_dong_ho/firebase_options.dart';
 import 'package:provider/provider.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -86,7 +89,7 @@ class MyButtonNavigationBar extends StatefulWidget {
 
 class _MyButtonNavigationBar extends State<MyButtonNavigationBar> {
   int _selectedIndex = 0;
-  final List<CartItem> danhSachSanPham = []; 
+  final List<CartItem> danhSachSanPham = [];
 
   late final List<Widget> _widgetOptions;
 
@@ -94,17 +97,15 @@ class _MyButtonNavigationBar extends State<MyButtonNavigationBar> {
   void initState() {
     super.initState();
     _widgetOptions = [
-      TrangChu(),
-      RequireAuth(child: Favorite()),
+      RequireAuth(child: TrangChu()),
+      RequireAuth(child: ThongKeChiTieuScreen()),
       RequireAuth(child: GioHangScreen()),
-     RequireAuth(child: Info()
-     ) ,
+      RequireAuth(child: Info()),
     ];
   }
 
-  static const List<PreferredSizeWidget> _widgetAppbar = <PreferredSizeWidget>[
-    
-  ];
+  static const List<PreferredSizeWidget> _widgetAppbar =
+      <PreferredSizeWidget>[];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -115,12 +116,14 @@ class _MyButtonNavigationBar extends State<MyButtonNavigationBar> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: ''),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart_rounded),
+            label: '',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.shopping_cart_outlined),
             label: '',
@@ -132,10 +135,9 @@ class _MyButtonNavigationBar extends State<MyButtonNavigationBar> {
         ],
         backgroundColor: AppColors.background,
         selectedItemColor: AppColors.primary,
-        unselectedItemColor:
-            Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black,
+        unselectedItemColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black,
         showSelectedLabels: false,
         showUnselectedLabels: false,
         onTap: _onItemTapped,

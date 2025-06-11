@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shop_ban_dong_ho/core/services/gio_hang_service.dart';
@@ -317,6 +318,7 @@ class _ChiTietSanPhamState extends State<ChiTietSanPham> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
+                      
                           log("đã nhân nút thêm vào giỏ hàng");
                           log('số lượng $quantity sản phẩm ${sp.maSP}');
                           await GioHangService.themSanPham(

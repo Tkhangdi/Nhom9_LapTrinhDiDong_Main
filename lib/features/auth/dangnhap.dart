@@ -105,7 +105,7 @@ class _DangNhapState extends State<DangNhap> {
       final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
-      if (googleUser == null) return; // user cancel
+      if (googleUser == null) return;
 
       final googleAuth = await googleUser.authentication;
 
@@ -124,42 +124,29 @@ class _DangNhapState extends State<DangNhap> {
       final userCredential = await FirebaseAuth.instance.signInWithCredential(
         credential,
       );
-
       final user = userCredential.user;
       if (user == null) return;
 
-      final email = user.email;
-      if (email == null) {
-        throw FirebaseAuthException(
-          code: 'ERROR_NO_EMAIL',
-          message: 'User email is null',
-        );
-      }
+      final email = user.email ?? '';
+      final uid = user.uid;
 
-      final check = await FirebaseFirestore.instance
+      final docRef = FirebaseFirestore.instance
           .collection('khachhang')
-          .where('email', isEqualTo: email)
-          .get();
+          .doc(uid);
+      final docSnap = await docRef.get();
 
-      if (check.docs.isEmpty) {
-        final docId = FirebaseFirestore.instance
-            .collection('khachhang')
-            .doc()
-            .id;
-        await FirebaseFirestore.instance
-            .collection('khachhang')
-            .doc(docId)
-            .set({
-              'id': docId,
-              'hotenkh': user.displayName ?? 'Chưa có tên',
-              'TaiKhoan': email,
-              'matkhau': '',
-              'gioitinh': 'Nam',
-              'ngaysinh': '',
-              'sdt': '',
-              'diachi': '',
-              'email': email,
-            });
+      if (!docSnap.exists) {
+        await docRef.set({
+          'id': uid, // dùng uid làm id luôn
+          'hotenkh': user.displayName ?? 'Chưa có tên',
+          'TaiKhoan': email,
+          'matkhau': '',
+          'gioitinh': 'Nam',
+          'ngaysinh': '',
+          'sdt': '',
+          'diachi': '',
+          'email': email,
+        });
       }
 
       Navigator.pushReplacement(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shop_ban_dong_ho/core/services/gio_hang_service.dart';
 import 'package:shop_ban_dong_ho/features/data/models/SanPham.dart';
+import 'package:shop_ban_dong_ho/features/orders/QRCodeScreen.dart';
 import 'package:shop_ban_dong_ho/features/orders/quanlydonhang.dart';
 import 'package:shop_ban_dong_ho/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,6 +29,8 @@ class _ThanhtoanState extends State<Thanhtoan> {
   int _ptThanhToan = 1;
   bool isLoading = true;
   List<Map<String, dynamic>> gioHangHienThi = [];
+  Map<String, dynamic>? thongTinNguoiDung;
+
   void _capNhatPhuongThuc(int value) {
     setState(() {
       _ptThanhToan = value;
@@ -37,10 +40,29 @@ class _ThanhtoanState extends State<Thanhtoan> {
   @override
   void initState() {
     super.initState();
+    loadThongTinNguoiDung();
     if (widget.sanPhamMuaNgay != null && widget.soLuongMuaNgay != null) {
       loadSanPham();
     } else {
       loadGioHang();
+    }
+  }
+
+  Future<void> loadThongTinNguoiDung() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final userId = currentUser.uid;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('khachhang')
+        .doc(userId)
+        .get();
+
+    if (doc.exists) {
+      setState(() {
+        thongTinNguoiDung = doc.data();
+      });
     }
   }
 
@@ -54,7 +76,6 @@ class _ThanhtoanState extends State<Thanhtoan> {
     if (spSnapshot.docs.isNotEmpty) {
       final spData = spSnapshot.docs.first.data();
       final sanPham = SanPham.fromJson(spData);
-
       tempList.add({'sanPham': sanPham, 'soLuong': widget.soLuongMuaNgay});
     }
 
@@ -66,7 +87,44 @@ class _ThanhtoanState extends State<Thanhtoan> {
     });
   }
 
+  Future<void> loadGioHang() async {
+    final rawItems = await GioHangService.layGioHang();
+    List<Map<String, dynamic>> tempList = [];
+
+    for (var item in rawItems) {
+      final maSp = item['maSp'];
+      final soLuong = item['soLuong'];
+
+      final spSnapshot = await FirebaseFirestore.instance
+          .collection('SanPham')
+          .where('maSp', isEqualTo: maSp)
+          .limit(1)
+          .get();
+
+      if (spSnapshot.docs.isNotEmpty) {
+        final spData = spSnapshot.docs.first.data();
+        final sanPham = SanPham.fromJson(spData);
+        tempList.add({'sanPham': sanPham, 'soLuong': soLuong});
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      gioHangHienThi = tempList;
+      isLoading = false;
+    });
+  }
+
   Widget thongTinNguoiNhan() {
+    if (thongTinNguoiDung == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final hoTen = thongTinNguoiDung!['hotenkh'] ?? '';
+    final sdt = thongTinNguoiDung!['sdt'] ?? '';
+    final diaChi = thongTinNguoiDung!['diachi'] ?? '';
+
     return Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -83,19 +141,15 @@ class _ThanhtoanState extends State<Thanhtoan> {
               children: [
                 Row(
                   children: [
-                    Text("Nguyễn Ngọc Hải"),
+                    Text(hoTen),
                     SizedBox(width: 4),
                     Text(
-                      "(0374528455)",
+                      "($sdt)",
                       style: TextStyle(fontSize: 10, color: Colors.grey),
                     ),
                   ],
                 ),
-                Text("Số 21, Diệp Minh Châu", style: TextStyle(fontSize: 10)),
-                Text(
-                  "P. Tân Sơn Nhì, Q. Tân Phú, TP.HCM",
-                  style: TextStyle(fontSize: 10),
-                ),
+                Text(diaChi, style: TextStyle(fontSize: 10)),
               ],
             ),
           ),
@@ -195,7 +249,7 @@ class _ThanhtoanState extends State<Thanhtoan> {
             "Tổng tiền sản phẩm",
             "${tinhTongTien().toStringAsFixed(0)} đ",
           ),
-          rowChiTiet("Phí vận chuyển", "${phiShip.toStringAsFixed(0)} đ"),
+          rowChiTiet("Phí vận chuyển", "20000 đ"),
           Divider(),
           rowChiTiet(
             "Tổng cộng",
@@ -230,15 +284,13 @@ class _ThanhtoanState extends State<Thanhtoan> {
   }
 
   void _datHang() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final userId = currentUser?.uid ?? "id_test";
     String orderId = DateTime.now().millisecondsSinceEpoch.toString();
-
     double phiShip = 20000;
     double tongCong = tinhTongTien() + phiShip;
 
     try {
-      // Lưu đơn hàng lên Firestore
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final userId = currentUser?.uid ?? "id_test";
       await FirebaseFirestore.instance
           .collection('orders')
           .doc(userId)
@@ -247,21 +299,19 @@ class _ThanhtoanState extends State<Thanhtoan> {
           .set({
             'orderId': orderId,
             'userId': userId,
-            'hoTen': "Nguyễn Ngọc Hải",
-            'soDienThoai': "0374528455",
-            'diaChi':
-                "Số 21, Diệp Minh Châu, P. Tân Sơn Nhì, Q. Tân Phú, TP.HCM",
-            'danhSachSanPham': gioHangHienThi
-                .map(
-                  (item) => {
-                    'id': item['sanPham'].maSP,
-                    'ten': item['sanPham'].tenSanPham,
-                    'gia': item['sanPham'].gia,
-                    'soLuong': item['soLuong'],
-                    'hinhAnh': item['sanPham'].hinhAnh,
-                  },
-                )
-                .toList(),
+            'hoTen': thongTinNguoiDung?['hotenkh'] ?? '',
+            'soDienThoai': thongTinNguoiDung?['sdt'] ?? '',
+            'diaChi': thongTinNguoiDung?['diachi'] ?? '',
+            'danhSachSanPham': gioHangHienThi.map((item) {
+              final sp = item['sanPham'];
+              return {
+                'id': sp.maSP,
+                'ten': sp.tenSanPham,
+                'gia': sp.gia,
+                'soLuong': item['soLuong'],
+                'hinhAnh': sp.hinhAnh,
+              };
+            }).toList(),
             'tongTien': tinhTongTien(),
             'phiVanChuyen': phiShip,
             'tongCong': tongCong,
@@ -270,43 +320,34 @@ class _ThanhtoanState extends State<Thanhtoan> {
             'ngayDat': Timestamp.now(),
           });
 
-      // Cập nhật số lượng tồn kho sản phẩm
       for (var item in gioHangHienThi) {
-        final SanPham sp = item['sanPham'];
-        final int sl = item['soLuong'];
-        final newSoLuongTon = (sp.soLuongTon ?? 0) - sl;
-        await FirebaseFirestore.instance
+        final sp = item['sanPham'] as SanPham;
+        final newSoLuongTon = (sp.soLuongTon ?? 0) - item['soLuong'];
+        final snapshot = await FirebaseFirestore.instance
             .collection('SanPham')
             .where('maSp', isEqualTo: sp.maSP)
             .limit(1)
-            .get()
-            .then((snapshot) async {
-          if (snapshot.docs.isNotEmpty) {
-            await snapshot.docs.first.reference.update({'soLuongTon': newSoLuongTon});
-          }
-        });
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          await snapshot.docs.first.reference.update({
+            'soLuongTon': newSoLuongTon,
+          });
+        }
       }
 
-      if (_ptThanhToan == 1) {
+      if (_ptThanhToan == 2) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => QRCodeScreen(orderId: orderId, tongCong: tongCong),
+          ),
+        );
+      } else {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => QuanLyDonHangScreen()),
         );
-      } else {
-        // // Chuyển sang trang thanh toán VNPAY
-        // String returnUrl = "https://sandbox.vnpayment.vn/return";
-
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder:
-        //         (context) => VnpayPaymentPage(
-        //           orderId: orderId,
-        //           amount: tongCong.toInt(),
-        //           returnUrl: returnUrl,
-        //         ),
-        //   ),
-        // );
       }
     } catch (e) {
       print("Lỗi đặt hàng: $e");
@@ -317,36 +358,6 @@ class _ThanhtoanState extends State<Thanhtoan> {
         ),
       );
     }
-  }
-
-  Future<void> loadGioHang() async {
-    final rawItems = await GioHangService.layGioHang();
-    List<Map<String, dynamic>> tempList = [];
-
-    for (var item in rawItems) {
-      final maSp = item['maSp'];
-      final soLuong = item['soLuong'];
-
-      final spSnapshot = await FirebaseFirestore.instance
-          .collection('SanPham')
-          .where('maSp', isEqualTo: maSp)
-          .limit(1)
-          .get();
-
-      if (spSnapshot.docs.isNotEmpty) {
-        final spData = spSnapshot.docs.first.data();
-        final sanPham = SanPham.fromJson(spData);
-
-        tempList.add({'sanPham': sanPham, 'soLuong': soLuong});
-      }
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      gioHangHienThi = tempList;
-      isLoading = false;
-    });
   }
 
   @override
@@ -393,7 +404,6 @@ class _ThanhtoanState extends State<Thanhtoan> {
   }
 }
 
-// Widget con trong cùng file
 class PtThanhToan extends StatefulWidget {
   final Function(int) onChanged;
 

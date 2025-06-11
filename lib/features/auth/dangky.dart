@@ -201,12 +201,12 @@ class _DangKyState extends State<DangKy> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    Image.asset(
-                      "assets/images/Logo.jpg",
-                      width: MediaQuery.of(context).size.width / 2,
-                      height: 150,
-                      fit: BoxFit.contain,
-                    ),
+                    // Image.asset(
+                    //   "assets/images/Logo.jpg",
+                    //   width: MediaQuery.of(context).size.width / 2,
+                    //   height: 150,
+                    //   fit: BoxFit.contain,
+                    // ),
                     SizedBox(height: 20),
                     TextFormField(
                       controller: hotenkhController,
